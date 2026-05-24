@@ -28,3 +28,4 @@ scikit-learn==1.5.0
 
 # Environment variables (.env file support)
 python-dotenv==1.0.1
+groq

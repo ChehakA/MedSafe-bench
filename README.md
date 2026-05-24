@@ -155,6 +155,16 @@ streamlit run frontend/app.py
 
 ---
 
+## GitHub Actions / CI Notes
+
+- The scheduled workflow runs a real full evaluation using `GROQ_API_KEY` from GitHub Secrets.
+- `evaluate.py` writes results into `results/` and `checkpoints/` during the job.
+- By default the GitHub Actions runner does not persist these files after the job completes.
+- If you want permanent storage, enable `commit_results=true` or add artifact upload in the workflow.
+- Also note: Groq may offer a free tier, but scheduled full runs can still consume quota and may incur costs if your account exceeds free usage.
+
+---
+
 ## Project Structure
 
 ```

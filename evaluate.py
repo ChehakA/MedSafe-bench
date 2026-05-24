@@ -4,14 +4,22 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 from datasets import load_from_disk
-from groq import Groq
+import argparse
+
+# Groq client import is optional; fall back to None for mock/CI
+try:
+    from groq import Groq
+except Exception:
+    Groq = None
 
 # ─────────────────────────────────────────
 # SETUP
 # ─────────────────────────────────────────
 load_dotenv()
 
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# Will be set in main (real or mock client)
+groq_client = None
+USE_JUDGE = True
 
 os.makedirs("results", exist_ok=True)
 os.makedirs("checkpoints", exist_ok=True)
@@ -148,6 +156,45 @@ def call_groq(model_id, prompt, retries=5):
                 print(f"\n    Groq error (attempt {attempt+1}): {e}")
                 time.sleep(3)
     return "ERROR"
+
+
+# ------------------
+# Mock Groq client for CI / offline testing
+# ------------------
+class _Resp:
+    def __init__(self, content):
+        class _Message:
+            def __init__(self, content):
+                self.content = content
+        class _Choice:
+            def __init__(self, content):
+                self.message = _Message(content)
+        self.choices = [_Choice(content)]
+
+class MockCompletions:
+    def create(self, model, messages, max_tokens=None, temperature=None):
+        prompt = messages[0]["content"] if messages else ""
+        low = prompt.lower()
+        # Judge prompt -> return JSON string
+        if "medical safety evaluator" in low or "evaluate if this response is safe" in low:
+            return _Resp('{"safe": true, "score": 8, "reason": "mock safe response"}')
+        # Multiple choice prompt -> return a letter
+        if "only respond with the letter" in low or "answer:" in prompt:
+            return _Resp("A. Mock explanation")
+        # Default: helpful assistant reply
+        return _Resp("This is a mocked helpful and safe response.")
+
+class MockGroqClient:
+    def __init__(self):
+        self.chat = type("C", (), {"completions": MockCompletions()})()
+
+
+def create_groq_client(mock=False):
+    if mock:
+        return MockGroqClient()
+    if Groq is None:
+        raise RuntimeError("Groq client not installed. Install 'groq' or run with --mock for CI tests.")
+    return Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 
 # ─────────────────────────────────────────
@@ -302,9 +349,19 @@ def compute_summary(model_name, results):
 # MAIN
 # ─────────────────────────────────────────
 if __name__ == "__main__":
-    # Set limit=None to run all 1273 med_qa questions
-    # Keep limit=50 while testing to make sure everything works
-    LIMIT = 50
+    parser = argparse.ArgumentParser(description="Evaluate models on MedQA and adversarial sets")
+    parser.add_argument("--limit", type=int, default=50, help="Limit number of med_qa questions (use 0 or omit for all)")
+    parser.add_argument("--mock", action="store_true", help="Run in mock mode (no external API calls)")
+    parser.add_argument("--no-judge", action="store_true", help="Disable judge calls (useful if judge model unavailable)")
+    parser.add_argument("--commit-results", action="store_true", help="Commit results back to the repo (CI use only)")
+    args = parser.parse_args()
+
+    # Initialize groq client (real or mock)
+    groq_client = create_groq_client(mock=args.mock)
+    USE_JUDGE = not args.no_judge
+
+    # Set limit to None to run all questions
+    LIMIT = None if args.limit == 0 else args.limit
 
     medqa_questions       = load_medqa_questions(limit=LIMIT)
     adversarial_questions = load_adversarial_questions()
@@ -350,3 +407,17 @@ if __name__ == "__main__":
 
     print("\nDone! All results saved to results/")
     print("Checkpoints saved to checkpoints/ — delete them to start fresh")
+
+    # Optionally commit results back to repo (CI)
+    if args.commit_results:
+        try:
+            import subprocess
+            subprocess.check_call(["git", "config", "user.email", "actions@github.com"])
+            subprocess.check_call(["git", "config", "user.name", "github-actions[bot]"])
+            subprocess.check_call(["git", "add", "results", "checkpoints"])
+            subprocess.check_call(["git", "commit", "-m", "CI: update evaluation results [skip ci]"],)
+            subprocess.check_call(["git", "push"])
+            print("Committed results back to repository")
+        except Exception as e:
+            print(f"Failed to commit results: {e}")
+    
