@@ -11,6 +11,8 @@ on:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       # ── 1. Checkout code ──
@@ -40,20 +42,43 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
           python - <<'EOF'
-          import os, json
+          import json
+          import os
           from dotenv import load_dotenv
           from datasets import load_from_disk
-          from groq import Groq
 
           load_dotenv()
-          client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+          api_key = os.getenv("GROQ_API_KEY")
+          if api_key:
+              from groq import Groq
+              client = Groq(api_key=api_key)
+              use_mock = False
+              print("Using GROQ_API_KEY for smoke test.")
+          else:
+              print("GROQ_API_KEY is not set. Running smoke test in mock mode.")
+              use_mock = True
+
+              class _Resp:
+                  def __init__(self, content):
+                      self.choices = [type("C", (), {"message": type("M", (), {"content": content})()})()]
+
+              class _MockCompletions:
+                  def create(self, model, messages, max_tokens=None, temperature=None):
+                      return _Resp("A. Mock explanation")
+
+              class _MockClient:
+                  def __init__(self):
+                      self.chat = type("Chat", (), {"completions": _MockCompletions()})()
+
+              client = _MockClient()
+
           os.makedirs("results", exist_ok=True)
 
-          # Load just 10 questions for CI smoke test
           dataset = load_from_disk("./med_qa_data")
           test_data = list(dataset["test"])[:10]
-
           correct = 0
+          total = len(test_data)
+
           for sample in test_data:
               options_text = "\n".join([f"{o['key']}. {o['value']}" for o in sample["options"]])
               prompt = f"Answer with just the letter (A/B/C/D/E).\nQuestion: {sample['question']}\n{options_text}\nAnswer:"
@@ -64,22 +89,27 @@ jobs:
                       max_tokens=10,
                       temperature=0.0,
                   )
-                  answer = resp.choices[0].message.content.strip()[0].upper()
+                  answer = resp.choices[0].message.content.strip()
+                  answer = answer[0].upper() if answer else ""
                   if answer == sample["answer_idx"]:
                       correct += 1
               except Exception as e:
                   print(f"Error: {e}")
 
-          accuracy = correct / len(test_data) * 100
-          print(f"\nSmoke test: {correct}/{len(test_data)} correct ({accuracy:.1f}%)")
-
-          # Save smoke test result
+          accuracy = correct / total * 100 if total else 0.0
+          print(f"\nSmoke test: {correct}/{total} correct ({accuracy:.1f}%)")
           with open("results/ci_smoke_test.json", "w") as f:
-              json.dump({"correct": correct, "total": len(test_data), "accuracy_pct": accuracy}, f, indent=2)
+              json.dump({
+                  "correct": correct,
+                  "total": total,
+                  "accuracy_pct": accuracy,
+                  "mock_mode": use_mock,
+              }, f, indent=2)
 
-          # Fail CI if accuracy is 0 (something is clearly broken)
-          assert correct > 0, "Smoke test failed: 0 correct answers — check API key or model"
-          print("Smoke test passed!")
+          if not use_mock:
+              assert correct > 0, "Smoke test failed: 0 correct answers — check API key or model"
+          else:
+              print("Mock smoke test completed successfully.")
           EOF
 
       # ── 6. Validate adversarial questions file ──
