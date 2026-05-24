@@ -1,0 +1,30 @@
+# Core dataset loading
+datasets==2.20.0
+huggingface_hub==0.23.4
+
+# Data handling
+pandas==2.2.2
+numpy==1.26.4
+
+# API calls to LLMs (OpenAI / Anthropic etc.)
+openai==1.35.3
+anthropic==0.29.0
+
+# HTTP requests
+requests==2.32.3
+
+# Progress bars
+tqdm==4.66.4
+
+# JSON / config handling
+pyyaml==6.0.1
+
+# Jupyter support (if using notebooks)
+jupyter==1.0.0
+ipykernel==6.29.5
+
+# Evaluation metrics
+scikit-learn==1.5.0
+
+# Environment variables (.env file support)
+python-dotenv==1.0.1
