@@ -135,8 +135,13 @@ git clone https://github.com/yourusername/medsafe-bench
 cd medsafe-bench
 pip install -r requirements.txt
 
-# Add your API keys
-cp .env.example .env
+# Create a local .env file with your keys
+python setup_env.py
+
+# Open .env and paste your GROQ_API_KEY and GOOGLE_API_KEY
+# Then verify the key setup
+python config.py
+python verify_keys.py
 
 # Run eval on 20 questions (dev mode)
 python eval/pipeline.py --sample 20
