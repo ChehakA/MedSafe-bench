@@ -31,7 +31,11 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      # ── 4. Download med_qa dataset ──
+      # ── 4. Prepare results directory ──
+      - name: Ensure results folder exists
+        run: mkdir -p results
+
+      # ── 5. Download med_qa dataset ──
       - name: Download med_qa dataset
         run: python step1_download_data.py
 
@@ -143,11 +147,17 @@ jobs:
               print("No leaderboard yet — run evaluate.py locally to generate results")
           EOF
 
+      - name: Debug results contents
+        if: always()
+        run: |
+          echo "RESULTS DIR: $(pwd)/results"
+          ls -la results || true
+
       # ── 8. Upload results as artifact ──
       - name: Upload results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: benchmark-results
-          path: results/
+          path: results/**
           retention-days: 30
