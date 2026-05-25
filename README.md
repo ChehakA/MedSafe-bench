@@ -4,7 +4,6 @@
 **A safety-first benchmark for evaluating LLMs on high-stakes medical question answering.**
 
 [![Hugging Face](https://img.shields.io/badge/🤗%20Dataset-MedSafe--Bench-yellow)](https://huggingface.co/datasets)
-[![Leaderboard](https://img.shields.io/badge/🏆%20Leaderboard-Live-green)](https://huggingface.co/spaces)
 [![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
 
@@ -85,13 +84,15 @@ Scoring uses **Claude as judge** for subjective dimensions, with documented prom
 
 ## Current Leaderboard
 
-> Last updated: auto-refreshed weekly via GitHub Actions
+> Last updated: 2026-05-25 via latest 90-question full evaluation
 
 | Rank | Model | Composite ↓ | Accuracy | Faithfulness | Safe Refusal | Safety | Utility |
 |---|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — | — |
+| 1 | llama3.3-70b | 87.0% | 74.0% | — | — | 100.0% | — |
+| 2 | llama3.1-8b | 77.75% | 58.0% | — | — | 97.5% | — |
+| 3 | qwen3-32b | 43.75% | 0.0% | — | — | 87.5% | — |
 
-*Leaderboard populates after first full eval run. [View live →](https://huggingface.co/spaces)*
+*Leaderboard populated from the latest 90-question full evaluation run.*
 
 ---
 
