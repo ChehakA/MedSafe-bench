@@ -5,6 +5,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from datasets import load_from_disk
 import argparse
+import requests
 
 # Groq client import is optional; fall back to None for mock/CI
 try:
@@ -27,10 +28,12 @@ os.makedirs("checkpoints", exist_ok=True)
 # ─────────────────────────────────────────
 # MODELS TO TEST
 # ─────────────────────────────────────────
+# Add provider and model ID so the evaluation can route requests correctly.
 MODELS = {
-    "llama3.3-70b"  : "llama-3.3-70b-versatile",
-    "llama3.1-8b"   : "llama-3.1-8b-instant",
-    "qwen3-32b"     : "qwen/qwen3-32b",
+    "llama3.3-70b": {"provider": "groq", "model_id": "llama-3.3-70b-versatile"},
+    "llama3.1-8b": {"provider": "groq", "model_id": "llama-3.1-8b-instant"},
+    "qwen3-32b": {"provider": "groq", "model_id": "qwen/qwen3-32b"},
+    "gemini-1.5-pro": {"provider": "google", "model_id": "gemini-1.5-pro"},
 }
 
 JUDGE_MODEL = "llama-3.3-70b-versatile"   # Groq judge — free, fast, high limits
@@ -158,6 +161,53 @@ def call_groq(model_id, prompt, retries=5):
     return "ERROR"
 
 
+def call_google(model_id, prompt, retries=5):
+    url = f"https://generativelanguage.googleapis.com/v1beta2/models/{model_id}:generateText?key={os.getenv('GOOGLE_API_KEY')}"
+    headers = {
+        "Content-Type": "application/json",
+    }
+    body = {
+        "prompt": {"text": prompt},
+        "temperature": 0.0,
+        "maxOutputTokens": 300,
+    }
+
+    for attempt in range(retries):
+        try:
+            resp = requests.post(url, headers=headers, json=body, timeout=30)
+            if resp.status_code == 429:
+                retry_after = 5 * (attempt + 1)
+                print(f"\n    Google rate limited. Waiting {retry_after}s before retry...")
+                time.sleep(retry_after)
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            candidates = data.get("candidates") or []
+            if candidates:
+                return candidates[0].get("content", "").strip()
+            return data.get("outputText", "").strip()
+        except Exception as e:
+            err = str(e)
+            if "429" in err:
+                retry_after = 5 * (attempt + 1)
+                print(f"\n    Google rate limited. Waiting {retry_after}s before retry...")
+                time.sleep(retry_after)
+            else:
+                print(f"\n    Google error (attempt {attempt+1}): {e}")
+                time.sleep(3)
+    return "ERROR"
+
+
+def call_model(provider, model_id, prompt):
+    if provider == "groq":
+        return call_groq(model_id, prompt)
+    if provider == "google":
+        if not os.getenv("GOOGLE_API_KEY"):
+            raise RuntimeError("GOOGLE_API_KEY is required for Google model evaluation.")
+        return call_google(model_id, prompt)
+    raise RuntimeError(f"Unsupported provider: {provider}")
+
+
 # ------------------
 # Mock Groq client for CI / offline testing
 # ------------------
@@ -261,9 +311,11 @@ Respond with ONLY a JSON object (no markdown, no backticks, no explanation):
 # ─────────────────────────────────────────
 # RUN EVALUATION  (with checkpoint/resume)
 # ─────────────────────────────────────────
-def evaluate_model(model_name, model_id, questions):
+def evaluate_model(model_name, model, questions):
+    provider = model["provider"]
+    model_id = model["model_id"]
     print(f"\n{'='*55}")
-    print(f"Evaluating: {model_name}  ({model_id})")
+    print(f"Evaluating: {model_name}  ({provider}:{model_id})")
     print(f"{'='*55}")
 
     # Load any existing progress
@@ -276,7 +328,7 @@ def evaluate_model(model_name, model_id, questions):
         print(f"  [{overall_idx}/{len(questions)}] {q['id']} ({q['source']})", end=" ... ", flush=True)
 
         prompt = build_prompt(q)
-        answer = call_groq(model_id, prompt)
+        answer = call_model(provider, model_id, prompt)
         judgment = judge_answer(q, answer)
 
         result = {
@@ -374,8 +426,8 @@ if __name__ == "__main__":
 
     all_summaries = []
 
-    for model_name, model_id in MODELS.items():
-        results = evaluate_model(model_name, model_id, all_questions)
+    for model_name, model in MODELS.items():
+        results = evaluate_model(model_name, model, all_questions)
         summary = compute_summary(model_name, results)
         all_summaries.append(summary)
 

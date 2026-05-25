@@ -77,8 +77,25 @@ Every question includes a ground truth answer, source citation, risk level (`low
 | Llama 3.1 70B | Meta (via Groq) | llama-3.1-70b |
 | Gemini 1.5 Pro | Google | gemini-1.5-pro |
 
+This table lists the models that were planned for evaluation in the benchmark.
+
+### Currently executed models
+
+The current repo includes models that are actually configured and run in `evaluate.py`:
+
+| Model | Provider | Version |
+|---|---|---|
+| Llama 3.3 70B | Meta (via Groq) | llama-3.3-70b-versatile |
+| Llama 3.1 8B | Meta (via Groq) | llama-3.1-8b-instant |
+| Qwen 3-32B | Qwen | qwen/qwen3-32b |
+| Gemini 1.5 Pro | Google | gemini-1.5-pro |
+
+Google Gemini support requires a valid `GOOGLE_API_KEY` in `.env`.
+
 All models are evaluated on identical prompts at temperature 0.0 for reproducibility.  
-Scoring uses **Claude as judge** for subjective dimensions, with documented prompts and known limitations.
+Scoring uses **Groq Llama 3.3 as judge** for subjective dimensions, with documented prompts and known limitations.
+
+> Note: the current published leaderboard comes from the latest 90-question evaluation export, which includes composite, accuracy, and safety metrics. Faithfulness, safe refusal, and utility were not available in the current results export and are shown as unavailable here.
 
 ---
 
@@ -86,13 +103,13 @@ Scoring uses **Claude as judge** for subjective dimensions, with documented prom
 
 > Last updated: 2026-05-25 via latest 90-question full evaluation
 
-| Rank | Model | Composite ↓ | Accuracy | Faithfulness | Safe Refusal | Safety | Utility |
-|---|---|---|---|---|---|---|---|
-| 1 | llama3.3-70b | 87.0% | 74.0% | — | — | 100.0% | — |
-| 2 | llama3.1-8b | 77.75% | 58.0% | — | — | 97.5% | — |
-| 3 | qwen3-32b | 43.75% | 0.0% | — | — | 87.5% | — |
+| Rank | Model | Composite ↓ | Accuracy | Safety |
+|---|---|---|---|---|
+| 1 | llama3.3-70b | 87.0% | 74.0% | 100.0% |
+| 2 | llama3.1-8b | 77.75% | 58.0% | 97.5% |
+| 3 | qwen3-32b | 43.75% | 0.0% | 87.5% |
 
-*Leaderboard populated from the latest 90-question full evaluation run.*
+*Leaderboard populated from the latest 90-question full evaluation run. Other subjective dimensions are currently not included in this published export.*
 
 ---
 
@@ -116,10 +133,10 @@ Store results → update leaderboard
 
 ### LLM-as-Judge
 
-Subjective dimensions (faithfulness, safety, clinical utility) are scored by Claude using structured prompts. The judge prompt, scoring rubric, and known failure modes are fully documented in [`eval/judge.py`](eval/judge.py).
+Subjective dimensions (faithfulness, safety, clinical utility) are scored by Groq Llama 3.3 using structured prompts. The judge prompt, scoring rubric, and known failure modes are fully documented in [`eval/judge.py`](eval/judge.py).
 
 **Known limitations of this approach:**
-- Claude may be biased toward rating its own responses higher (we document and monitor this)
+- Groq may still exhibit bias or formatting issues in judge output
 - Medical ground truth is complex — our dataset citations are from peer-reviewed sources and standard references
 - This is a research benchmark, not a clinical validation tool
 
@@ -145,13 +162,13 @@ python config.py
 python verify_keys.py
 
 # Run eval on 20 questions (dev mode)
-python eval/pipeline.py --sample 20
+python evaluate.py --limit 20
 
-# Run full benchmark
-python eval/pipeline.py --full
+# Run a 90-question evaluation (50 MedQA + 40 adversarial)
+python evaluate.py --limit 50
 
-# Launch leaderboard locally
-streamlit run frontend/app.py
+# Run the full dataset
+python evaluate.py --limit 0
 ```
 
 ---
