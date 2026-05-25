@@ -33,7 +33,7 @@ MODELS = {
     "llama3.3-70b": {"provider": "groq", "model_id": "llama-3.3-70b-versatile"},
     "llama3.1-8b": {"provider": "groq", "model_id": "llama-3.1-8b-instant"},
     "qwen3-32b": {"provider": "groq", "model_id": "qwen/qwen3-32b"},
-    "gemini-1.5-pro": {"provider": "google", "model_id": "gemini-1.5-pro"},
+    "gemini-1.5-pro": {"provider": "google", "model_id": "text-bison-001"},
 }
 
 JUDGE_MODEL = "llama-3.3-70b-versatile"   # Groq judge — free, fast, high limits

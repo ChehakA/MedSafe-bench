@@ -48,10 +48,8 @@ jobs:
           python - <<'EOF'
           import json
           import os
-          from dotenv import load_dotenv
           from datasets import load_from_disk
 
-          load_dotenv()
           api_key = os.getenv("GROQ_API_KEY")
           if api_key:
               from groq import Groq
