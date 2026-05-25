@@ -75,7 +75,7 @@ Every question includes a ground truth answer, source citation, risk level (`low
 | Claude Sonnet 4.6 | Anthropic | claude-sonnet-4-6 |
 | GPT-4o | OpenAI | gpt-4o-2024-08 |
 | Llama 3.1 70B | Meta (via Groq) | llama-3.1-70b |
-| Gemini 1.5 Pro | Google | gemini-1.5-pro |
+| Google text-bison-001 | Google | text-bison-001 |
 
 This table lists the models that were planned for evaluation in the benchmark.
 
@@ -88,9 +88,9 @@ The current repo includes models that are actually configured and run in `evalua
 | Llama 3.3 70B | Meta (via Groq) | llama-3.3-70b-versatile |
 | Llama 3.1 8B | Meta (via Groq) | llama-3.1-8b-instant |
 | Qwen 3-32B | Qwen | qwen/qwen3-32b |
-| Gemini 1.5 Pro | Google | gemini-1.5-pro |
+| Google text-bison-001 | Google | text-bison-001 |
 
-Google Gemini support requires a valid `GOOGLE_API_KEY` in `.env`.
+Google text-bison support requires a valid `GOOGLE_API_KEY` in `.env`.
 
 All models are evaluated on identical prompts at temperature 0.0 for reproducibility.  
 Scoring uses **Groq Llama 3.3 as judge** for subjective dimensions, with documented prompts and known limitations.
