@@ -54,6 +54,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,21 +78,18 @@ jobs:
           pip install -r requirements.txt
 
       - name: Debug secrets
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-        env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
           echo "GROQ_API_KEY is set: $([ -n "$GROQ_API_KEY" ] && echo 'YES' || echo 'NO')"
           echo "GOOGLE_API_KEY is set: $([ -n "$GOOGLE_API_KEY" ] && echo 'YES' || echo 'NO')"
-          echo "GROQ first 10 chars: ${GROQ_API_KEY:0:10}..."
-          echo "GOOGLE first 10 chars: ${GOOGLE_API_KEY:0:10}..."
+          if [ -n "$GOOGLE_API_KEY" ]; then
+            echo "GOOGLE first 10 chars: ${GOOGLE_API_KEY:0:10}..."
+          fi
+          if [ -n "$GROQ_API_KEY" ]; then
+            echo "GROQ first 10 chars: ${GROQ_API_KEY:0:10}..."
+          fi
 
       - name: Run full evaluation (manual/scheduled)
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-        env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: |
           # Use input limit; empty or 0 means run all
           LIMIT="${{ github.event.inputs.limit }}"
