@@ -202,8 +202,16 @@ def call_model(provider, model_id, prompt):
     if provider == "groq":
         return call_groq(model_id, prompt)
     if provider == "google":
-        if not os.getenv("GOOGLE_API_KEY"):
-            raise RuntimeError("GOOGLE_API_KEY is required for Google model evaluation.")
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            # Debug: show what env vars are available
+            print("\n[ERROR] GOOGLE_API_KEY is not set!")
+            print("Available API keys:", [k for k in os.environ.keys() if "API" in k.upper()])
+            print("\nTo fix this:")
+            print("1. Go to GitHub: Settings → Secrets and variables → Actions")
+            print("2. Add a new secret named exactly: GOOGLE_API_KEY")
+            print("3. Paste your API key as the value")
+            raise RuntimeError("GOOGLE_API_KEY is required for Google model evaluation. See debug output above.")
         return call_google(model_id, prompt)
     raise RuntimeError(f"Unsupported provider: {provider}")
 
