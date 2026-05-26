@@ -162,11 +162,12 @@ def call_groq(model_id, prompt, retries=5):
 
 
 def call_google(model_id, prompt, retries=5):
-    
+    # FIX: use v1beta (not deprecated v1beta2) with the Gemini generateContent endpoint
     api_key = os.getenv("GOOGLE_API_KEY")
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
-    
+    # FIX: Gemini request body uses "contents"/"parts" structure, not "prompt"/"text"
+    body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": 0.0,
@@ -184,7 +185,7 @@ def call_google(model_id, prompt, retries=5):
                 continue
             resp.raise_for_status()
             data = resp.json()
-
+            # FIX: Gemini response structure is candidates[0].content.parts[0].text
             candidates = data.get("candidates") or []
             if candidates:
                 parts = candidates[0].get("content", {}).get("parts", [])
