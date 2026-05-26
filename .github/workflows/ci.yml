@@ -15,6 +15,10 @@ on:
         description: 'Commit results back to repo'
         required: false
         default: 'false'
+      google_api_key:
+        description: 'Google API Key (optional, for gemini-1.5-pro)'
+        required: false
+        type: string
   # Run nightly at 02:00 UTC
   schedule:
     - cron: '0 2 * * *'
@@ -90,6 +94,9 @@ jobs:
 
       - name: Run full evaluation (manual/scheduled)
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GOOGLE_API_KEY: ${{ github.event.inputs.google_api_key || secrets.GOOGLE_API_KEY }}
         run: |
           # Use input limit; empty or 0 means run all
           LIMIT="${{ github.event.inputs.limit }}"
