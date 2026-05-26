@@ -33,7 +33,7 @@ MODELS = {
     "llama3.3-70b": {"provider": "groq", "model_id": "llama-3.3-70b-versatile"},
     "llama3.1-8b": {"provider": "groq", "model_id": "llama-3.1-8b-instant"},
     "qwen3-32b": {"provider": "groq", "model_id": "qwen/qwen3-32b"},
-    "gemini-1.5-pro": {"provider": "google", "model_id": "text-bison-001"},
+    "gemini-1.5-pro": {"provider": "google", "model_id": "gemini-1.5-pro"},
 }
 
 JUDGE_MODEL = "llama-3.3-70b-versatile"   # Groq judge — free, fast, high limits
@@ -162,14 +162,16 @@ def call_groq(model_id, prompt, retries=5):
 
 
 def call_google(model_id, prompt, retries=5):
-    url = f"https://generativelanguage.googleapis.com/v1beta2/models/{model_id}:generateText?key={os.getenv('GOOGLE_API_KEY')}"
-    headers = {
-        "Content-Type": "application/json",
-    }
-    body = {
-        "prompt": {"text": prompt},
-        "temperature": 0.0,
-        "maxOutputTokens": 300,
+    
+    api_key = os.getenv("GOOGLE_API_KEY")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.0,
+            "maxOutputTokens": 300,
+        },
     }
 
     for attempt in range(retries):
@@ -182,19 +184,16 @@ def call_google(model_id, prompt, retries=5):
                 continue
             resp.raise_for_status()
             data = resp.json()
+
             candidates = data.get("candidates") or []
             if candidates:
-                return candidates[0].get("content", "").strip()
-            return data.get("outputText", "").strip()
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if parts:
+                    return parts[0].get("text", "").strip()
+            return "ERROR"
         except Exception as e:
-            err = str(e)
-            if "429" in err:
-                retry_after = 5 * (attempt + 1)
-                print(f"\n    Google rate limited. Waiting {retry_after}s before retry...")
-                time.sleep(retry_after)
-            else:
-                print(f"\n    Google error (attempt {attempt+1}): {e}")
-                time.sleep(3)
+            print(f"\n    Google error (attempt {attempt+1}): {e}")
+            time.sleep(3)
     return "ERROR"
 
 
@@ -204,13 +203,13 @@ def call_model(provider, model_id, prompt):
     if provider == "google":
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
+            
+            if isinstance(groq_client, MockGroqClient):
+                return "A. Mock Google response for CI"
             # Debug: show what env vars are available
             print("\n[ERROR] GOOGLE_API_KEY is not set!")
             print("Available API keys:", [k for k in os.environ.keys() if "API" in k.upper()])
-            print("\nTo fix this:")
-            print("1. Go to GitHub: Settings → Secrets and variables → Actions")
-            print("2. Add a new secret named exactly: GOOGLE_API_KEY")
-            print("3. Paste your API key as the value")
+            
             raise RuntimeError("GOOGLE_API_KEY is required for Google model evaluation. See debug output above.")
         return call_google(model_id, prompt)
     raise RuntimeError(f"Unsupported provider: {provider}")
@@ -480,4 +479,3 @@ if __name__ == "__main__":
             print("Committed results back to repository")
         except Exception as e:
             print(f"Failed to commit results: {e}")
-    
