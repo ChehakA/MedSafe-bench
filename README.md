@@ -146,40 +146,39 @@ All eval runs are logged with: model version, prompt hash, temperature, timestam
 
 ---
 
-## Run It Yourself
+## Quickstart
+
+Install and run a short smoke test:
 
 ```bash
 git clone https://github.com/yourusername/medsafe-bench
 cd medsafe-bench
 pip install -r requirements.txt
-
-# Create a local .env file with your keys
-python setup_env.py
-
-# Open .env and paste your GROQ_API_KEY and GOOGLE_API_KEY
-# Then verify the key setup
-python config.py
-python verify_keys.py
-
-# Run eval on 20 questions (dev mode)
-python evaluate.py --limit 20
-
-# Run a 90-question evaluation (50 MedQA + 40 adversarial)
-python evaluate.py --limit 50
-
-# Run the full dataset
-python evaluate.py --limit 0
+python setup_env.py   # create .env with API keys
+python evaluate.py --limit 1 --mock   # quick smoke test
 ```
+
+For full runs, use `--limit` 0 (all) or a larger number; CI runs full evaluations on schedule.
 
 ---
 
 ## GitHub Actions / CI Notes
 
 - The scheduled workflow runs a real full evaluation using `GROQ_API_KEY` from GitHub Secrets.
-- `evaluate.py` writes results into `results/` and `checkpoints/` during the job.
-- By default the GitHub Actions runner does not persist these files after the job completes.
-- If you want permanent storage, enable `commit_results=true` or add artifact upload in the workflow.
-- Also note: Groq may offer a free tier, but scheduled full runs can still consume quota and may incur costs if your account exceeds free usage.
+- `ci.yml` now downloads the `med_qa` dataset before evaluation to avoid load failures.
+- `evaluate.py` writes results into `results/` and `checkpoints/` on the runner; CI uploads artifacts by default.
+- To persist results in the repo set `commit_results=true` when dispatching or update the workflow to commit on schedule.
+- Note: Groq may offer a free tier; scheduled full runs can still consume quota and may incur costs.
+
+## Risk Scorer (concise)
+
+- File: `risk_Scorer.py`
+- Purpose: map MedSafe-Bench outputs to the Enhanced AI Incident Risk Assessment v2.0 and compute AI-specific risk scores (IES, DQRS, SARS, PDPS, FES, RRS, AGSS) and an AI-specific ORS.
+- Quick use:
+        - Run example: `python risk_Scorer.py`
+        - Score existing results: `python risk_Scorer.py --results-dir results --out results/risk_scores.json`
+- Integration: `evaluate.py` will attach `ai_risk` to `results/{model}_results.json` when `risk_Scorer` is importable.
+- Limitations: PDPS (privacy) and FES (fairness) are not computed automatically by the benchmark and should be treated as research gaps.
 
 ---
 

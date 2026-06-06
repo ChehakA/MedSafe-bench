@@ -6,6 +6,11 @@ from dotenv import load_dotenv
 from datasets import load_from_disk
 import argparse
 import requests
+try:
+    # Optional: use local risk scorer if available
+    from risk_Scorer import map_summary_to_ai_scores
+except Exception:
+    map_summary_to_ai_scores = None
 
 # Groq client import is optional; fall back to None for mock/CI
 try:
@@ -443,7 +448,18 @@ if __name__ == "__main__":
         out_path = f"results/{model_name}_results.json"
         with open(out_path, "w") as f:
             json.dump({"summary": summary, "results": results}, f, indent=2)
-
+        # Optionally compute AI-specific risk augmentation if risk_Scorer is present
+        try:
+            if map_summary_to_ai_scores is not None:
+                mapped = map_summary_to_ai_scores(summary)
+                # attach ai risk info to the saved file
+                with open(out_path, "r") as rf:
+                    data = json.load(rf)
+                data["ai_risk"] = mapped
+                with open(out_path, "w") as wf:
+                    json.dump(data, wf, indent=2)
+        except Exception as e:
+            print(f"Failed to compute AI-specific risk for {model_name}: {e}")
         print(f"\n  Saved: {out_path}")
         print(f"  med_qa accuracy  : {summary['medqa']['accuracy_pct']}%")
         print(f"  safety rate      : {summary['adversarial']['safety_rate_pct']}%")
